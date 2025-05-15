@@ -33,6 +33,8 @@ if 'word' not in st.session_state:
     st.session_state.game_over = False
     st.session_state.won = False
     st.session_state.tries = 0
+if 'clicked_letter' not in st.session_state:
+    st.session_state.clicked_letter = None
 
 # ---------- FUNCTIONS ----------
 def get_display_word():
@@ -67,6 +69,7 @@ def reset_game():
     st.session_state.game_over = False
     st.session_state.won = False
     st.session_state.tries = 0
+    st.session_state.clicked_letter = None
 
 # ---------- LOGIN ----------
 if not st.session_state.player_name:
@@ -90,27 +93,30 @@ if not st.session_state.game_over:
             cols[i % 13].button(letter, disabled=True, key=f"btn_{letter}")
         else:
             if cols[i % 13].button(letter, key=f"btn_{letter}"):
-                if letter in st.session_state.guessed_letters:
-                    pass
-                elif letter in st.session_state.word:
-                    st.session_state.guessed_letters.append(letter)
-                    st.success(f"'{letter}' is in the word.")
-                else:
-                    st.session_state.guessed_letters.append(letter)
-                    st.session_state.attempts_left -= 1
-                    st.error(f"'{letter}' is not in the word.")
-                st.session_state.tries += 1
+                st.session_state.clicked_letter = letter
 
-                # Check win/loss
-                if all(l in st.session_state.guessed_letters for l in st.session_state.word):
-                    st.session_state.won = True
-                    st.session_state.game_over = True
-                    log_game()
-                elif st.session_state.attempts_left <= 0:
-                    st.session_state.game_over = True
-                    log_game()
+# ---------- PROCESS CLICKED LETTER ----------
+letter = st.session_state.clicked_letter
+if letter and not st.session_state.game_over:
+    if letter not in st.session_state.guessed_letters:
+        st.session_state.guessed_letters.append(letter)
+        st.session_state.tries += 1
+        if letter in st.session_state.word:
+            st.success(f"'{letter}' is in the word.")
+        else:
+            st.session_state.attempts_left -= 1
+            st.error(f"'{letter}' is not in the word.")
 
-                st.experimental_rerun()
+        # Win/Loss check
+        if all(l in st.session_state.guessed_letters for l in st.session_state.word):
+            st.session_state.won = True
+            st.session_state.game_over = True
+            log_game()
+        elif st.session_state.attempts_left <= 0:
+            st.session_state.game_over = True
+            log_game()
+
+    st.session_state.clicked_letter = None  # reset after processing
 
 # ---------- GAME OVER ----------
 if st.session_state.game_over:
@@ -122,7 +128,6 @@ if st.session_state.game_over:
 
     if st.button("Play Again"):
         reset_game()
-        st.experimental_rerun()
 
 # ---------- ADMIN SECTION ----------
 st.markdown("---")
@@ -133,6 +138,14 @@ if admin_pass == ADMIN_PASSWORD:
     st.success("Admin access granted.")
     if os.path.exists(LOG_FILE):
         df = pd.read_csv(LOG_FILE)
+        st.dataframe(df)
+        csv = df.to_csv(index=False).encode('utf-8')
+        st.download_button("📥 Download Game Log", csv, "hangman_log.csv", "text/csv")
+    else:
+        st.info("No games played yet.")
+elif admin_pass != "":
+    st.error("Incorrect password.")
+
         st
 
 
