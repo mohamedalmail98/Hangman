@@ -4,13 +4,14 @@ import datetime
 import os
 import random
 import urllib.request
+import string
 
-# --------- Constants ---------
+# ---------- CONSTANTS ----------
 ADMIN_PASSWORD = "letmein7787"
 LOG_FILE = "hangman_log.csv"
 WORD_SOURCE_URL = "https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt"
 
-# --------- Load Word List Once ---------
+# ---------- LOAD WORD LIST ----------
 @st.cache_data
 def load_word_list():
     response = urllib.request.urlopen(WORD_SOURCE_URL)
@@ -19,7 +20,7 @@ def load_word_list():
 
 word_list = load_word_list()
 
-# --------- Initialize Session State ---------
+# ---------- INIT SESSION STATE ----------
 if 'player_name' not in st.session_state:
     st.session_state.player_name = ""
 if 'used_words' not in st.session_state:
@@ -32,10 +33,10 @@ if 'word' not in st.session_state:
     st.session_state.game_over = False
     st.session_state.won = False
     st.session_state.tries = 0
-if 'logged' not in st.session_state:
-    st.session_state.logged = False
+if 'last_guess' not in st.session_state:
+    st.session_state.last_guess = ""
 
-# --------- Helper Functions ---------
+# ---------- FUNCTIONS ----------
 def get_display_word():
     return " ".join([letter if letter in st.session_state.guessed_letters else "_" for letter in st.session_state.word])
 
@@ -68,8 +69,9 @@ def reset_game():
     st.session_state.game_over = False
     st.session_state.won = False
     st.session_state.tries = 0
+    st.session_state.last_guess = ""
 
-# --------- Login ---------
+# ---------- LOGIN ----------
 if not st.session_state.player_name:
     st.title("🎮 Hangman Game")
     st.session_state.player_name = st.text_input("Enter your name to begin:")
@@ -77,18 +79,25 @@ if not st.session_state.player_name:
 
 st.title(f"🔤 Welcome {st.session_state.player_name} to Hangman!")
 
-# --------- Game Display ---------
+# ---------- DISPLAY GAME STATUS ----------
 st.subheader("Guess the hidden word!")
 st.markdown(f"### Word: `{get_display_word()}`")
 st.markdown(f"**Attempts left**: {st.session_state.attempts_left}")
 st.markdown(f"**Guessed letters**: {' '.join(st.session_state.guessed_letters)}")
 
+# ---------- LETTER BUTTONS ----------
 if not st.session_state.game_over:
-    with st.form("guess_form", clear_on_submit=True):
-    guess = st.text_input("Enter a letter", max_chars=1, key="guess_input").upper()
-    submit = st.form_submit_button("Guess")
+    cols = st.columns(13)
+    for i, letter in enumerate(string.ascii_uppercase):
+        if letter in st.session_state.guessed_letters:
+            cols[i % 13].button(letter, disabled=True)
+        else:
+            if cols[i % 13].button(letter):
+                st.session_state.last_guess = letter
 
-if submit and guess:
+# ---------- PROCESS GUESS ----------
+guess = st.session_state.last_guess
+if guess and not st.session_state.game_over:
     if guess in st.session_state.guessed_letters:
         st.warning("You already guessed that letter.")
     elif guess in st.session_state.word:
@@ -99,7 +108,9 @@ if submit and guess:
         st.session_state.attempts_left -= 1
         st.error(f"'{guess}' is not in the word.")
     st.session_state.tries += 1
+    st.session_state.last_guess = ""
 
+    # Check win/loss
     if all(letter in st.session_state.guessed_letters for letter in st.session_state.word):
         st.session_state.won = True
         st.session_state.game_over = True
@@ -108,7 +119,7 @@ if submit and guess:
         st.session_state.game_over = True
         log_game()
 
-# --------- Game Over Display ---------
+# ---------- GAME OVER ----------
 if st.session_state.game_over:
     if st.session_state.won:
         st.balloons()
@@ -118,22 +129,21 @@ if st.session_state.game_over:
 
     if st.button("Play Again"):
         reset_game()
-        st.stop()
 
-# --------- Admin Section ---------
+# ---------- ADMIN SECTION ----------
 st.markdown("---")
 st.markdown("🔐 **Admin Login**")
 
 admin_pass = st.text_input("Enter admin password", type="password")
-
 if admin_pass == ADMIN_PASSWORD:
     st.success("Admin access granted.")
     if os.path.exists(LOG_FILE):
         df = pd.read_csv(LOG_FILE)
         st.dataframe(df)
         csv = df.to_csv(index=False).encode('utf-8')
-        st.download_button("📥 Download Log CSV", csv, "hangman_log.csv", "text/csv")
+        st.download_button("📥 Download Game Log", csv, "hangman_log.csv", "text/csv")
     else:
         st.info("No games played yet.")
 elif admin_pass != "":
     st.error("Incorrect password.")
+
