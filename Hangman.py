@@ -146,6 +146,5 @@ if admin_pass == ADMIN_PASSWORD:
 elif admin_pass != "":
     st.error("Incorrect password.")
 
-        st
 
 
