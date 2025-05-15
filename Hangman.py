@@ -84,29 +84,29 @@ st.markdown(f"**Attempts left**: {st.session_state.attempts_left}")
 st.markdown(f"**Guessed letters**: {' '.join(st.session_state.guessed_letters)}")
 
 if not st.session_state.game_over:
-    guess = st.text_input("Enter a letter", max_chars=1).upper()
+    with st.form("guess_form", clear_on_submit=True):
+    guess = st.text_input("Enter a letter", max_chars=1, key="guess_input").upper()
+    submit = st.form_submit_button("Guess")
 
-    if guess:
-        if guess in st.session_state.guessed_letters:
-            st.warning("You already guessed that letter.")
-        elif guess in st.session_state.word:
-            st.session_state.guessed_letters.append(guess)
-            st.success(f"'{guess}' is in the word.")
-        else:
-            st.session_state.guessed_letters.append(guess)
-            st.session_state.attempts_left -= 1
-            st.error(f"'{guess}' is not in the word.")
-        st.session_state.tries += 1
+if submit and guess:
+    if guess in st.session_state.guessed_letters:
+        st.warning("You already guessed that letter.")
+    elif guess in st.session_state.word:
+        st.session_state.guessed_letters.append(guess)
+        st.success(f"'{guess}' is in the word.")
+    else:
+        st.session_state.guessed_letters.append(guess)
+        st.session_state.attempts_left -= 1
+        st.error(f"'{guess}' is not in the word.")
+    st.session_state.tries += 1
 
-        if all(letter in st.session_state.guessed_letters for letter in st.session_state.word):
-            st.session_state.won = True
-            st.session_state.game_over = True
-            log_game()
-        elif st.session_state.attempts_left <= 0:
-            st.session_state.game_over = True
-            log_game()
-
-    st.stop()
+    if all(letter in st.session_state.guessed_letters for letter in st.session_state.word):
+        st.session_state.won = True
+        st.session_state.game_over = True
+        log_game()
+    elif st.session_state.attempts_left <= 0:
+        st.session_state.game_over = True
+        log_game()
 
 # --------- Game Over Display ---------
 if st.session_state.game_over:
